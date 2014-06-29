@@ -24,7 +24,7 @@ namespace NServiceBus.Pipeline
                 throw new ArgumentNullException("stepId");
             }
 
-            config.Settings.Get<PipelineModifications>().Removals.Add(new RemoveBehavior(stepId));
+            config.Settings.Get<PipelineModifications>().Removals.Add(new RemoveStep(stepId));
         }
 
         /// <summary>

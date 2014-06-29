@@ -2,20 +2,20 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Runtime.ExceptionServices;
-    using Logging;
 
     class BehaviorChain<T> where T : BehaviorContext
     {
-        // ReSharper disable once StaticFieldInGenericType
-        // The number of T's is small and they will all log to the same point due to the typeof(BehaviorChain<>)
-        static ILog logger = LogManager.GetLogger(typeof(BehaviorChain<>));
+        readonly PipelineExecutor pipelineExecutor;
         Queue<Type> itemDescriptors = new Queue<Type>();
         Stack<Queue<Type>> snapshots = new Stack<Queue<Type>>();
         ExceptionDispatchInfo preservedRootException;
+        PipelineInstance pipelineInstance;
 
-        public BehaviorChain(IEnumerable<Type> behaviorList)
+        public BehaviorChain(IEnumerable<Type> behaviorList, PipelineExecutor pipelineExecutor)
         {
+            this.pipelineExecutor = pipelineExecutor;
             foreach (var behaviorType in behaviorList)
             {
                 itemDescriptors.Enqueue(behaviorType);
@@ -27,6 +27,8 @@
             try
             {
                 context.SetChain(this);
+                pipelineInstance = new PipelineInstance();
+                pipelineExecutor.AddNewInstance(pipelineInstance);
                 InvokeNext(context);
             }
             catch
@@ -35,6 +37,7 @@
                 {
                     preservedRootException.Throw();
                 }
+
                 throw;
             }
         }
@@ -43,16 +46,21 @@
         {
             if (itemDescriptors.Count == 0)
             {
+                pipelineInstance.CompleteSteps();
                 return;
             }
 
             var behaviorType = itemDescriptors.Dequeue();
-            logger.Debug(behaviorType.Name);
 
             try
             {
                 var instance = (IBehavior<T>)context.Builder.Build(behaviorType);
+                var step = new Step { Behavior = behaviorType, Id = "stepId" };
+                pipelineInstance.AddStep(step);
+                var watch = Stopwatch.StartNew();
                 instance.Invoke(context, () => InvokeNext(context));
+                watch.Stop();
+                step.Duration = watch.Elapsed;
             }
             catch (Exception exception)
             {
@@ -60,6 +68,9 @@
                 {
                     preservedRootException = ExceptionDispatchInfo.Capture(exception);
                 }
+
+                pipelineInstance.CompleteSteps();
+
                 throw;
             }
         }

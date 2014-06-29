@@ -6,6 +6,7 @@
     using NServiceBus.Pipeline;
     using NUnit.Framework;
     using ObjectBuilder;
+    using Settings;
 
     [TestFixture]
     public class BehaviorChainTests
@@ -14,11 +15,11 @@
         public void When_exception_is_thrown_stack_trace_is_trimmed()
         {
             var behaviorChain = new BehaviorChain<FakeContext>(new List<Type>
-                {
-                    typeof(SimpleBehavior1),
-                    typeof(SimpleBehavior2),
-                    typeof(BehaviorThatThrows),
-                });
+            {
+                typeof(SimpleBehavior1),
+                typeof(SimpleBehavior2),
+                typeof(BehaviorThatThrows),
+            }, new PipelineExecutor(new SettingsHolder(), new FuncBuilder()));
 
             var exception = Assert.Throws<FakeException>(() => behaviorChain.Invoke(new FakeContext(null)));
             var stackTraceLines = exception.StackTrace
