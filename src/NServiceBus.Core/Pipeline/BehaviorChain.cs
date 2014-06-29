@@ -11,7 +11,7 @@
         Queue<Type> itemDescriptors = new Queue<Type>();
         Stack<Queue<Type>> snapshots = new Stack<Queue<Type>>();
         ExceptionDispatchInfo preservedRootException;
-        PipelineInstance pipelineInstance;
+        Pipe pipe;
 
         public BehaviorChain(IEnumerable<Type> behaviorList, PipelineExecutor pipelineExecutor)
         {
@@ -27,8 +27,8 @@
             try
             {
                 context.SetChain(this);
-                pipelineInstance = new PipelineInstance();
-                pipelineExecutor.AddNewInstance(pipelineInstance);
+                pipe = new Pipe();
+                pipelineExecutor.AddNewInstance(pipe);
                 InvokeNext(context);
             }
             catch
@@ -46,7 +46,7 @@
         {
             if (itemDescriptors.Count == 0)
             {
-                pipelineInstance.CompleteSteps();
+                pipe.CompleteSteps();
                 return;
             }
 
@@ -56,7 +56,7 @@
             {
                 var instance = (IBehavior<T>)context.Builder.Build(behaviorType);
                 var step = new Step { Behavior = behaviorType, Id = "stepId" };
-                pipelineInstance.AddStep(step);
+                pipe.AddStep(step);
                 var watch = Stopwatch.StartNew();
                 instance.Invoke(context, () => InvokeNext(context));
                 watch.Stop();
@@ -69,7 +69,7 @@
                     preservedRootException = ExceptionDispatchInfo.Capture(exception);
                 }
 
-                pipelineInstance.CompleteSteps();
+                pipe.CompleteSteps();
 
                 throw;
             }

@@ -4,19 +4,18 @@
     using System.Collections.Generic;
     using System.Linq;
     using Contexts;
-    using Janitor;
     using ObjectBuilder;
     using Settings;
     using Unicast;
     using Unicast.Messages;
 
     /// <summary>
-    /// Orchestrates the execution of a pipeline.
+    ///     Orchestrates the execution of a pipeline.
     /// </summary>
     public class PipelineExecutor : IDisposable
     {
         /// <summary>
-        /// Create a new instance of <see cref="PipelineExecutor"/>.
+        ///     Create a new instance of <see cref="PipelineExecutor" />.
         /// </summary>
         /// <param name="settings">The settings to read data from.</param>
         /// <param name="builder">The builder.</param>
@@ -33,19 +32,25 @@
         }
 
         /// <summary>
-        /// The list of incoming steps registered.
+        ///     The list of incoming steps registered.
         /// </summary>
         public IList<RegisterStep> Incoming { get; private set; }
-        
+
         /// <summary>
-        /// The list of outgoing steps registered.
+        ///     The list of outgoing steps registered.
         /// </summary>
         public IList<RegisterStep> Outgoing { get; private set; }
 
-        public IObservable<PipelineInstance> Instances { get { return pipelineInstances; } } 
+        /// <summary>
+        /// Running instances.
+        /// </summary>
+        public IObservable<Pipe> Instances
+        {
+            get { return pipelineInstances; }
+        }
 
         /// <summary>
-        /// The current context being executed.
+        ///     The current context being executed.
         /// </summary>
         public BehaviorContext CurrentContext
         {
@@ -65,7 +70,16 @@
         }
 
         /// <summary>
-        /// Invokes a chain of behaviors. 
+        ///     Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+        /// </summary>
+        /// <filterpriority>2</filterpriority>
+        public void Dispose()
+        {
+            //Injected
+        }
+
+        /// <summary>
+        ///     Invokes a chain of behaviors.
         /// </summary>
         /// <typeparam name="TContext">The context to use.</typeparam>
         /// <param name="behaviors">The behaviors to execute in the specified order.</param>
@@ -75,15 +89,6 @@
             var pipeline = new BehaviorChain<TContext>(behaviors, this);
 
             Execute(pipeline, context);
-        }
-
-        /// <summary>
-        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
-        /// </summary>
-        /// <filterpriority>2</filterpriority>
-        public void Dispose()
-        {
-            //Injected
         }
 
         internal void PreparePhysicalMessagePipelineContext(TransportMessage message)
@@ -117,6 +122,11 @@
             return context;
         }
 
+        internal void AddNewInstance(Pipe instance)
+        {
+            pipelineInstances.Add(instance);
+        }
+
         void DisposeManaged()
         {
             contextStacker.Dispose();
@@ -137,148 +147,9 @@
         }
 
         BehaviorContextStacker contextStacker = new BehaviorContextStacker();
-        IBuilder rootBuilder;
         IEnumerable<Type> incomingBehaviors;
         IEnumerable<Type> outgoingBehaviors;
         PipelineInstanceTracker pipelineInstances = new PipelineInstanceTracker();
-
-        public void AddNewInstance(PipelineInstance instance)
-        {
-            pipelineInstances.Add(instance);
-        }
-    }
-
-    public class PipelineInstance
-    {
-        StepsTracker stepsTracker;
-
-        public PipelineInstance()
-        {
-            stepsTracker = new StepsTracker();
-        }
-
-        public IObservable<Step> Steps { get { return stepsTracker; } }
-
-        public void AddStep(Step step)
-        {
-            stepsTracker.Add(step);
-        }
-
-        public void CompleteSteps()
-        {
-            stepsTracker.Complete();
-        }
-    }
-
-    class PipelineInstanceTracker : IObservable<PipelineInstance>
-    {
-        private List<IObserver<PipelineInstance>> observers;
-
-        public PipelineInstanceTracker()
-        {
-            observers = new List<IObserver<PipelineInstance>>();
-        }
-
-        public IDisposable Subscribe(IObserver<PipelineInstance> observer)
-        {
-            if (!observers.Contains(observer))
-            {
-                observers.Add(observer);
-            }
-
-            return new Unsubscriber(observers, observer);
-        }
-
-        public void Add(PipelineInstance instance)
-        {
-            foreach (var observer in observers)
-            {
-                observer.OnNext(instance);
-            }
-        }
-
-        [SkipWeaving]
-        private class Unsubscriber : IDisposable
-        {
-            private List<IObserver<PipelineInstance>> observers;
-            private IObserver<PipelineInstance> observer;
-
-            public Unsubscriber(List<IObserver<PipelineInstance>> observers, IObserver<PipelineInstance> observer)
-            {
-                this.observers = observers;
-                this.observer = observer;
-            }
-
-            public void Dispose()
-            {
-                if (observer != null && observers.Contains(observer))
-                {
-                    observers.Remove(observer);
-                }
-            }
-        }
-    }
-
-    public struct Step
-    {
-        public string Id { get; set; }
-        public Type Behavior { get; set; }
-        public TimeSpan Duration { get; set; }
-    }
-
-    class StepsTracker: IObservable<Step>
-    {
-        private List<IObserver<Step>> observers;
-
-        public StepsTracker()
-        {
-            observers = new List<IObserver<Step>>();
-        }
-        public IDisposable Subscribe(IObserver<Step> observer)
-        {
-            if (!observers.Contains(observer))
-            {
-                observers.Add(observer);
-            }
-
-            return new Unsubscriber(observers, observer);
-        }
-
-        public void Add(Step step)
-        {
-            foreach (var observer in observers)
-            {
-                observer.OnNext(step);
-            }
-        }
-
-        public void Complete()
-        {
-            foreach (var observer in observers)
-            {
-                observer.OnCompleted();
-            }
-        }
-
-        [SkipWeaving]
-        private class Unsubscriber : IDisposable
-        {
-            private List<IObserver<Step>> observers;
-            private IObserver<Step> observer;
-
-            public Unsubscriber(List<IObserver<Step>> observers, IObserver<Step> observer)
-            {
-                this.observers = observers;
-                this.observer = observer;
-            }
-
-            public void Dispose()
-            {
-                if (observer != null && observers.Contains(observer))
-                {
-                    observers.Remove(observer);
-                }
-            }
-        }
+        IBuilder rootBuilder;
     }
 }
