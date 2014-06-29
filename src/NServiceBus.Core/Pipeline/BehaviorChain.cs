@@ -56,11 +56,13 @@
             {
                 var instance = (IBehavior<T>)context.Builder.Build(behaviorType);
                 var step = new Step { Behavior = behaviorType, Id = "stepId" };
-                pipe.AddStep(step);
+
                 var watch = Stopwatch.StartNew();
                 instance.Invoke(context, () => InvokeNext(context));
                 watch.Stop();
                 step.Duration = watch.Elapsed;
+                pipe.AddStep(step);
+
             }
             catch (Exception exception)
             {
