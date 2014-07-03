@@ -96,7 +96,8 @@ namespace NServiceBus.Unicast.Tests.Contexts
             subscriptionManager = new SubscriptionManager
                 {
                     MessageSender = messageSender,
-                    SubscriptionStorage = subscriptionStorage
+                    SubscriptionStorage = subscriptionStorage,
+                    Configure = new Configure(settings, FuncBuilder)
                 };
 
             pipelineFactory = new PipelineExecutor(settings, FuncBuilder);
