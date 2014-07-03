@@ -148,6 +148,18 @@ namespace NServiceBus
         }
 
         /// <summary>
+        /// Sets the public return address of this endpoint.
+        /// </summary>
+        /// <param name="address">The public address.</param>
+        /// <returns></returns>
+        public ConfigurationBuilder OverridePublicReturnAddress(Address address)
+        {
+            publicReturnAddress = address;
+
+            return this;
+        }
+
+        /// <summary>
         ///     Creates the configuration object
         /// </summary>
         internal Configure BuildConfiguration()
@@ -183,6 +195,11 @@ namespace NServiceBus
             settings.SetDefault("TypesToScan", scannedTypes);
             settings.SetDefault("EndpointVersion", version);
 
+            if (publicReturnAddress != null)
+            {
+                settings.SetDefault("PublicReturnAddress", publicReturnAddress);
+            }
+
             var conventions = conventionsBuilder.BuildConventions();
             container.RegisterSingleton(typeof(Conventions), conventions);
 
@@ -201,5 +218,6 @@ namespace NServiceBus
         Func<string> getEndpointVersionAction = () => EndpointHelper.GetEndpointVersion();
         IList<Type> scannedTypes;
         SettingsHolder settings = new SettingsHolder();
+        Address publicReturnAddress;
     }
 }
